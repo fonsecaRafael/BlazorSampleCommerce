@@ -1,8 +1,9 @@
 ﻿@page "/profile"
-@using BlazorSampleCommerce.DTOs
 @rendermode InteractiveServer
+@inject AuthService AuthService
 @inject HttpClient Http
 @inject NavigationManager NavManager
+@using BlazorSampleCommerce.DTOs
 
 <PageTitle>Modifica Profilo</PageTitle>
 
@@ -24,11 +25,6 @@
                     }
                     else
                     {
-                        <div class="alert alert-warning">
-                            <label class="form-label fw-bold">ID Utente (Temporaneo per Debug):</label>
-                            <input type="text" class="form-control" @bind="userId" placeholder="Insira o GUID do usuário" />
-                        </div>
-
                         <EditForm Model="userModel" OnValidSubmit="HandleUpdate">
                             <DataAnnotationsValidator />
 
@@ -89,12 +85,13 @@
 </div>
 
 @code {
-    private string userId = "DE9B49F1-455D-44A8-904C-1C6625DC7CB0"; // ID padrão inicial
+    private Guid? userId => AuthService.CurrentUser?.Id ?? Guid.Empty;
     private UserUpdateDto userModel = new();
     private bool isLoading = true;
     private bool isSubmitting = false;
     private string statusMessage = "";
     private string statusClass = "";
+    private bool canShow = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -122,6 +119,7 @@
 
     private async Task HandleUpdate()
     {
+        if (userId == Guid.Empty) return;
         isSubmitting = true;
         statusMessage = "";
 
@@ -133,6 +131,12 @@
             {
                 statusMessage = "Profilo aggiornato con successo!";
                 statusClass = "alert-success";
+                //In order to update name in nav if it was changed
+                if (AuthService.CurrentUser != null)
+                {
+                    AuthService.CurrentUser.Name = userModel.Name;
+                    AuthService.CurrentUser.Email = userModel.Email;
+                }
             }
             else
             {

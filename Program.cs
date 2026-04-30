@@ -1,5 +1,6 @@
 using BlazorSampleCommerce.Components;
 using BlazorSampleCommerce.Services;
+using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 
 namespace BlazorSampleCommerce
 {
@@ -19,6 +20,9 @@ namespace BlazorSampleCommerce
                 BaseAddress = new Uri("https://localhost:7082/")
             });
 
+            builder.Services.AddDataProtection();
+            builder.Services.AddScoped<ProtectedLocalStorage>();
+            builder.Services.AddScoped<ProtectedSessionStorage>();
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.

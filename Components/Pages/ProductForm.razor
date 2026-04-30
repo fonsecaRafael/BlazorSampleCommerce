@@ -4,6 +4,7 @@
 @rendermode InteractiveServer
 @inject HttpClient Http
 @inject NavigationManager NavManager
+@inject AuthService AuthService
 
 <div class="container mt-5">
     <div class="card shadow">
@@ -90,7 +91,7 @@
     private SkuDto initialSku = new() { Features = new Dictionary<string, string>() };
     private SkuDto newSku = new() { Features = new Dictionary<string, string>() };
     private string skuFeatureRaw = "";
-    private readonly string sellerId = "924AA18C-528C-4894-B122-B6CE938A7BB8";
+    private Guid? sellerId => AuthService.CurrentUser?.Id;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -114,7 +115,7 @@
                     name = productModel.Name,
                     brand = productModel.Brand,
                     description = productModel.Description,
-                    sellerId = Guid.Parse(sellerId),
+                    sellerId = sellerId,
                     stockKeepingUnits = new[]
                     {
                     new {

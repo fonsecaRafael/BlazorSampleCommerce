@@ -3,6 +3,7 @@
 @using BlazorSampleCommerce.DTOs
 @inject HttpClient Http
 @inject NavigationManager NavManager
+@inject Services.AuthService AuthService
 
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -42,12 +43,15 @@
 
 @code {
     private List<ProductDto>? myProducts;
-    private readonly string sellerId = "924AA18C-528C-4894-B122-B6CE938A7BB8";
+    private Guid? SellerId => AuthService.CurrentUser?.Id;
 
     protected override async Task OnInitializedAsync()
     {
         var all = await Http.GetFromJsonAsync<List<ProductDto>>("Products");
-        myProducts = all?.Where(p => p.SellerId.ToString().ToUpper() == sellerId).ToList();
+        if (SellerId.HasValue)
+        {
+            myProducts = all?.Where(p => p.SellerId == SellerId.Value).ToList();
+        }
     }
 
     private void EditProduct(Guid id) => NavManager.NavigateTo($"/product-form/{id}");

@@ -49,7 +49,7 @@
                 {
                     <div class="dropdown">
                         <button class="btn btn-outline-info dropdown-toggle" @onclick="ToggleUserMenu">
-                            Ciao, @AuthService.UserEmail
+                            Ciao, @AuthService.CurrentUser!.Name
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end @(isUserMenuOpen ? "show" : "")"
                             style="position: absolute; right: 0; z-index: 1050;">
@@ -83,7 +83,7 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password</label>
-                        <input type="password" class="form-control" placeholder="Enter any password" />
+                        <input type="password" class="form-control" @bind="passwordField" placeholder="Enter your password" />
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -93,6 +93,10 @@
             </div>
         </div>
     </div>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger py-1">@errorMessage</div>
+    }
 }
 
 @code {
@@ -100,9 +104,11 @@
     private bool isUserMenuOpen = false;
     private bool showModal = false;
     private string emailField = "";
+    private string passwordField = "";
     private bool isBrandsOpen = false;
     private List<string>? brands;
     private List<ProductDto>? allProducts;
+    private string errorMessage = "";
 
     [Parameter] public EventCallback<string> OnBrandSelected { get; set; }
 
@@ -154,18 +160,26 @@
     void OpenModal() { CloseAll(); showModal = true; }
     void CloseModal() => showModal = false;
 
-    void ConfirmLogin()
+    async Task ConfirmLogin()
     {
-        if (!string.IsNullOrWhiteSpace(emailField))
+        errorMessage = "";
+        var success = await AuthService.LoginAsync(emailField, passwordField);
+        
+        if (success)
         {
-            AuthService.Login(emailField);
             showModal = false;
+            emailField = "";
+            passwordField = "";
+        }
+        else
+        {
+            errorMessage = "Email ou senha inválidos.";
         }
     }
 
     void Logout()
     {
-        AuthService.Logout();
+        AuthService.LogoutAsync();
         CloseAll();
     }
 }
