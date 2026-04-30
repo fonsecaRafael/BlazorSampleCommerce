@@ -1,0 +1,167 @@
+﻿@page "/product-form"
+@page "/product-form/{ProductId:guid}"
+@using BlazorSampleCommerce.DTOs
+@rendermode InteractiveServer
+@inject HttpClient Http
+@inject NavigationManager NavManager
+
+<div class="container mt-5">
+    <div class="card shadow">
+        <div class="card-header bg-dark text-white">
+            <h3>@(ProductId == null ? "Nuovo Prodotto" : "Modifica Prodotto")</h3>
+        </div>
+        <div class="card-body">
+            <EditForm Model="productModel" OnValidSubmit="SaveProduct" FormName="MainProductForm">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nome</label>
+                        <InputText @bind-Value="productModel.Name" class="form-control" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Brand</label>
+                        <InputText @bind-Value="productModel.Brand" class="form-control" />
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Descrizione</label>
+                    <InputTextArea @bind-Value="productModel.Description" class="form-control" rows="3" />
+                </div>
+
+                @if (ProductId == null)
+                {
+                    <h4 class="mt-4">Variazione Iniziale (SKU)</h4>
+                    <div class="row border p-3 rounded bg-light">
+                        <div class="col-md-6 mb-2">
+                            <label>Prezzo</label>
+                            <InputNumber @bind-Value="initialSku.Price" class="form-control" />
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label>Stock</label>
+                            <InputNumber @bind-Value="initialSku.Stock" class="form-control" />
+                        </div>
+                    </div>
+                }
+
+                <div class="mt-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-success" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm"></span> <span>Salvando...</span>
+                        }
+                        else
+                        {
+                            <span>Salva Prodotto</span>
+                        }
+                    </button>
+                    <button type="button" class="btn btn-secondary" @onclick='() => NavManager.NavigateTo("/my-products")'>Annulla</button>
+                </div>
+            </EditForm>
+
+            @if (ProductId != null)
+            {
+                <hr class="my-5" />
+                <h4>Aggiungi Nuova Variazione (SKU)</h4>
+                <div class="row g-3 align-items-end border p-3 rounded">
+                    <div class="col-md-3">
+                        <label>Prezzo</label>
+                        <InputNumber @bind-Value="newSku.Price" class="form-control" />
+                    </div>
+                    <div class="col-md-3">
+                        <label>Stock</label>
+                        <InputNumber @bind-Value="newSku.Stock" class="form-control" />
+                    </div>
+                    <div class="col-md-4">
+                        <label>Feature (Chiave:Valore)</label>
+                        <input type="text" class="form-control" placeholder="es: Colore:Rosso" @bind="skuFeatureRaw" />
+                    </div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-info w-100" @onclick="AddSkuOnly">Aggiungi SKU</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public Guid? ProductId { get; set; }
+    private bool isSubmitting = false;
+    private ProductDto productModel = new();
+    private SkuDto initialSku = new() { Features = new Dictionary<string, string>() };
+    private SkuDto newSku = new() { Features = new Dictionary<string, string>() };
+    private string skuFeatureRaw = "";
+    private readonly string sellerId = "924AA18C-528C-4894-B122-B6CE938A7BB8";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (ProductId != null)
+        {
+            productModel = await Http.GetFromJsonAsync<ProductDto>($"Products/{ProductId}") ?? new();
+        }
+    }
+
+    private async Task SaveProduct()
+    {
+        if (isSubmitting) return;
+        isSubmitting = true;
+
+        try
+        {
+            if (ProductId == null)
+            {
+                var payload = new
+                {
+                    name = productModel.Name,
+                    brand = productModel.Brand,
+                    description = productModel.Description,
+                    sellerId = Guid.Parse(sellerId),
+                    stockKeepingUnits = new[]
+                    {
+                    new {
+                        price = initialSku.Price,
+                        stock = initialSku.Stock,
+                        features = initialSku.Features
+                    }
+                }
+                };
+            
+                await Http.PostAsJsonAsync("Products", payload);
+            }
+            else
+            {
+                var updatePayload = new
+                {
+                    name = productModel.Name,
+                    brand = productModel.Brand,
+                    description = productModel.Description,
+                    isActive = true
+                };
+                await Http.PutAsJsonAsync($"Products/{ProductId}", updatePayload);
+            }
+        
+            NavManager.NavigateTo("/my-products");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao salvar: {ex.Message}");
+        }
+        finally
+        {
+            isSubmitting = false;
+        }
+    }
+
+    private async Task AddSkuOnly() // POST New SKU[cite: 1]
+    {
+        var parts = skuFeatureRaw.Split(':');
+        if (parts.Length == 2) newSku.Features[parts[0].Trim()] = parts[1].Trim();
+
+        newSku.ProductId = ProductId.Value;
+        await Http.PostAsJsonAsync("Skus", newSku);
+        
+        // Reset campos
+        newSku = new SkuDto { Features = new Dictionary<string, string>() };
+        skuFeatureRaw = "";
+        await OnParametersSetAsync(); // Refresh dados
+    }
+}

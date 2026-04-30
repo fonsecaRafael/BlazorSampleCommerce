@@ -1,0 +1,30 @@
+﻿@rendermode InteractiveServer
+@inject NavigationManager Nav
+
+<div class="card h-100 shadow-sm">
+    <div class="card-body">
+        <h5 class="card-title text-primary" style="cursor:pointer" @onclick="Navigate">
+            @Name
+        </h5>
+        <p class="card-text text-muted" style="cursor:pointer" @onclick="Navigate">
+            @Description
+        </p>
+        <div class="d-flex justify-content-between align-items-center">
+            <span class="h5 m-0">R$ @Price</span>
+            <button class="btn btn-sm btn-success" @onclick="AddToCart">
+                Add to Cart
+            </button>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Id { get; set; }
+    [Parameter] public string Name { get; set; } = "";
+    [Parameter] public string Description { get; set; } = "";
+    [Parameter] public decimal Price { get; set; }
+
+    void Navigate() => Nav.NavigateTo($"/product/{Id}");
+    
+    void AddToCart() { /* TODO: Adds Logic */ }
+}

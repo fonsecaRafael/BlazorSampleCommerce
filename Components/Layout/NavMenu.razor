@@ -1,0 +1,171 @@
+﻿@rendermode InteractiveServer
+@using BlazorSampleCommerce.DTOs
+@inject AuthService AuthService
+@inject Services.SearchService SearchService
+@inject NavigationManager NavManager
+@inject HttpClient Http
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark px-4 shadow mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">E-Commerce Lab</a>
+        
+        <div class="collapse navbar-collapse d-flex align-items-center">
+            <li class="nav-item dropdown">
+                <button class="btn btn-link nav-link dropdown-toggle border-0"
+                        @onclick="ToggleBrands"
+                        style="text-decoration: none;">
+                    Marchi
+                </button>
+                <ul class="dropdown-menu @(isBrandsOpen ? "show" : "")"
+                    style="position: absolute; z-index: 1050; display: @(isBrandsOpen ? "block" : "none")">
+        
+                    @if (brands == null)
+                    {
+                        <li><span class="dropdown-item">Loading...</span></li>
+                    }
+                    else
+                    {
+                        <li><button class="dropdown-item" @onclick='() => SelectBrand("")'>Tutte le Marche</button></li>
+                        <li><hr class="dropdown-divider"></li>
+
+                        @foreach (var brandName in brands)
+                        {
+                            <li>
+                                <button class="dropdown-item" @onclick='() => SelectBrand(brandName)'>
+                                    @brandName
+                                </button>
+                            </li>
+                        }
+                    }
+                </ul>
+            </li>
+
+            <div class="ms-auto d-flex align-items-center">
+                @if (!AuthService.IsLoggedIn)
+                {
+                    <button class="btn btn-primary" @onclick="OpenModal">Login</button>
+                }
+                else
+                {
+                    <div class="dropdown">
+                        <button class="btn btn-outline-info dropdown-toggle" @onclick="ToggleUserMenu">
+                            Ciao, @AuthService.UserEmail
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end @(isUserMenuOpen ? "show" : "")"
+                            style="position: absolute; right: 0; z-index: 1050;">
+                            <li><a class="dropdown-item" href="/profile" @onclick="CloseAll">Modifica Profilo</a></li>
+                            <li><a class="dropdown-item" href="/orders" @onclick="CloseAll">Orders</a></li>
+                            <li><a class="dropdown-item" href="/reviews" @onclick="CloseAll">My Reviews</a></li>
+                            <li><a class="dropdown-item" href="/my-products" @onclick="CloseAll">I miei prodotti</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><button class="dropdown-item text-danger" @onclick="Logout">Logout</button></li>
+                        </ul>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</nav>
+
+@if (showModal)
+{
+    <div class="modal fade show d-block" style="background: rgba(0,0,0,0.6); z-index: 1060;" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Sign In</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Email Address</label>
+                        <input type="email" class="form-control" @bind="emailField" placeholder="name@example.com" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" placeholder="Enter any password" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button class="btn btn-primary" @onclick="ConfirmLogin">Sign In</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private bool isCategoriesOpen = false;
+    private bool isUserMenuOpen = false;
+    private bool showModal = false;
+    private string emailField = "";
+    private bool isBrandsOpen = false;
+    private List<string>? brands;
+    private List<ProductDto>? allProducts;
+
+    [Parameter] public EventCallback<string> OnBrandSelected { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            allProducts = await Http.GetFromJsonAsync<List<ProductDto>>("Products");
+            
+            if (allProducts != null)
+            {
+                brands = allProducts
+                    .Select(p => p.Brand)
+                    .Distinct()
+                    .OrderBy(b => b)
+                    .ToList();
+            }
+        }
+        catch { brands = new List<string>(); }
+    }
+
+    private void ToggleBrands() => isBrandsOpen = !isBrandsOpen;
+
+    private async Task SelectBrand(string brand)
+    {
+        isBrandsOpen = false;
+        SearchService.UpdateBrand(brand);
+        NavManager.NavigateTo("/");
+    }
+
+    void ToggleCategories()
+    {
+        isCategoriesOpen = !isCategoriesOpen;
+        isUserMenuOpen = false;
+    }
+
+    void ToggleUserMenu()
+    {
+        isUserMenuOpen = !isUserMenuOpen;
+        isCategoriesOpen = false;
+    }
+
+    void CloseAll()
+    {
+        isCategoriesOpen = false;
+        isUserMenuOpen = false;
+    }
+
+    void OpenModal() { CloseAll(); showModal = true; }
+    void CloseModal() => showModal = false;
+
+    void ConfirmLogin()
+    {
+        if (!string.IsNullOrWhiteSpace(emailField))
+        {
+            AuthService.Login(emailField);
+            showModal = false;
+        }
+    }
+
+    void Logout()
+    {
+        AuthService.Logout();
+        CloseAll();
+    }
+}

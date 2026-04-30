@@ -1,0 +1,101 @@
+﻿@page "/"
+@using BlazorSampleCommerce.DTOs
+@inject HttpClient Http
+@rendermode InteractiveServer
+@implements IDisposable
+@inject Services.SearchService SearchService
+
+<PageTitle>Home - Sample Commerce</PageTitle>
+
+<div class="container">
+    <h2 class="mb-2">Saldi!!!</h2>
+    
+    @if (allProducts == null)
+    {
+        <div class="text-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Fetching products from API...</p>
+        </div>
+    }
+    else if (!allProducts.Any())
+    {
+        <p class="text-center">No products found.</p>
+    }
+    else
+    {
+        <div class="row row-cols-1 row-cols-md-4 g-4">
+            @foreach (var item in PaginatedItems)
+            {
+                var displayPrice = item.StockKeepingUnits.Any()
+                    ? item.StockKeepingUnits.Min(s => s.Price)
+                    : 0;
+
+                <div class="col">
+                    <ProductCard Id="@item.Id.ToString()"
+                                 Name="@item.Name"
+                                 Description="@item.Description"
+                                 Price="@displayPrice" />
+                </div>
+            }
+        </div>
+
+        <PaginationControl CurrentPage="currentPage"
+                           TotalPages="TotalPages"
+                           OnPageChange="ChangePage" />
+    }
+</div>
+
+@code {
+    private List<ProductDto>? allProducts;
+    private int currentPage = 1;
+    private const int pageSize = 8;
+
+    private IEnumerable<ProductDto> PaginatedItems =>
+        (string.IsNullOrEmpty(SearchService.SelectedBrand)
+            ? allProducts
+            : allProducts?.Where(p => p.Brand == SearchService.SelectedBrand))
+        ?.Skip((currentPage - 1) * pageSize)
+        .Take(pageSize) ?? Enumerable.Empty<ProductDto>();
+
+    private int TotalPages =>
+        (string.IsNullOrEmpty(SearchService.SelectedBrand)
+            ? allProducts?.Count
+            : allProducts?.Count(p => p.Brand == SearchService.SelectedBrand))
+        is int count ? (int)Math.Ceiling((double)count / pageSize) : 0;
+
+    protected override void OnInitialized()
+    {
+        SearchService.OnSearchChanged += StateHasChanged;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        SearchService.OnSearchChanged += HandleSearchChanged;
+        try
+        {
+            allProducts = await Http.GetFromJsonAsync<List<ProductDto>>("Products");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Erro ao carregar produtos: {ex.Message}");
+        }
+    }
+
+    private void HandleSearchChanged()
+    {
+        currentPage = 1;
+        StateHasChanged();
+    }
+
+    private void ChangePage(int page)
+    {
+        currentPage = page;
+    }
+
+    public void Dispose()
+    {
+        SearchService.OnSearchChanged -= HandleSearchChanged;
+    }
+}
